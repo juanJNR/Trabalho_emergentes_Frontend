@@ -26,18 +26,33 @@ function ProfessorPage() {
     const [erro, setErro] = useState('');
 
     useEffect(() => {
-        socket.on('novoToken', ({ token }) => {
-            setToken(token);
-            setTimer(20);
+        socket.on('novoToken', ({ token, turmaId }) => {
+            if (turma && turmaId === turma.id) {
+                setToken(token);
+                setTimer(20);
+            }
         });
-        socket.on('atualizarPresenca', () => {
-            if (turma) fetchPresencas(turma.id);
+        socket.on('atualizarPresenca', ({ turmaId }) => {
+            if (turma && turmaId === turma.id) {
+                fetchPresencas(turma.id);
+            }
         });
         return () => {
             socket.off('novoToken');
             socket.off('atualizarPresenca');
         };
     }, [turma]);
+
+    // Polling como backup - atualiza lista a cada 5 segundos
+    useEffect(() => {
+        if (!turma || !token) return;
+
+        const interval = setInterval(() => {
+            fetchPresencas(turma.id);
+        }, 5000);
+
+        return () => clearInterval(interval);
+    }, [turma, token]);
 
     useEffect(() => {
         if (token && timer > 0) {
