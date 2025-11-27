@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import QRCode from 'qrcode.react';
-import { io } from 'socket.io-client';
 
 interface Turma {
     id: number;
@@ -14,7 +13,6 @@ interface Presenca {
 }
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-const socket = io(API_URL);
 
 function ProfessorPage() {
     const [turmaNome, setTurmaNome] = useState('');
@@ -25,18 +23,15 @@ function ProfessorPage() {
     const [loading, setLoading] = useState(false);
     const [erro, setErro] = useState('');
 
+    // Polling para atualizar presenças a cada 3 segundos quando turma existe
     useEffect(() => {
-        socket.on('novoToken', ({ token }) => {
-            setToken(token);
-            setTimer(20); // Reinicia o timer quando recebe novo token
-        });
-        socket.on('atualizarPresenca', () => {
-            if (turma) fetchPresencas(turma.id);
-        });
-        return () => {
-            socket.off('novoToken');
-            socket.off('atualizarPresenca');
-        };
+        if (!turma) return;
+        
+        const interval = setInterval(() => {
+            fetchPresencas(turma.id);
+        }, 3000);
+        
+        return () => clearInterval(interval);
     }, [turma]);
 
     useEffect(() => {
@@ -59,17 +54,38 @@ function ProfessorPage() {
             setErro('');
             const res = await axios.post(`${API_URL}/api/turmas`, { nome: turmaNome });
             setTurma(res.data);
-            socket.emit('joinRoom', res.data.id); // Entra na sala da turma
         } catch (error: any) {
             console.error('Erro ao criar turma:', error);
-            setErro(error.response?.data?.message || 'Erro ao criar turma. Verifique sua conexão.');
+            setErro(error.response?.data?.error || 'Erro ao criar turma. Verifique sua conexão.');
         } finally {
             setLoading(false);
         }
     };
 
     const iniciarChamada = async () => {
-        if (turma) await axios.post(`${API_URL}/api/turmas/${turma.id}/qrcode`);
+        if (!turma) return;
+        
+        try {
+            const res = await axios.post(`${API_URL}/api/turmas/${turma.id}/qrcode`);
+            setToken(res.data.token);
+            setTimer(20);
+            
+            // Renovar token automaticamente a cada 20 segundos
+            const interval = setInterval(async () => {
+                try {
+                    const res = await axios.post(`${API_URL}/api/turmas/${turma.id}/qrcode`);
+                    setToken(res.data.token);
+                    setTimer(20);
+                } catch (error) {
+                    console.error('Erro ao renovar token:', error);
+                }
+            }, 20000);
+            
+            // Limpar interval quando componente desmontar
+            return () => clearInterval(interval);
+        } catch (error) {
+            console.error('Erro ao iniciar chamada:', error);
+        }
     };
 
     const fetchPresencas = async (turmaId: number) => {
