@@ -60,6 +60,7 @@ function ProfessorPage() {
             const res = await axios.post(`${API_URL}/api/turmas`, { nome: turmaNome });
             setTurma(res.data);
             socket.emit('joinRoom', res.data.id);
+            await fetchPresencas(res.data.id);
         } catch (error: any) {
             console.error('Erro ao criar turma:', error);
             setErro(error.response?.data?.error || 'Erro ao criar turma. Verifique sua conexão.');
@@ -69,23 +70,41 @@ function ProfessorPage() {
     };
 
     const iniciarChamada = async () => {
-        if (turma) await axios.post(`${API_URL}/api/turmas/${turma.id}/qrcode`);
+        if (!turma) return;
+
+        try {
+            await axios.post(`${API_URL}/api/turmas/${turma.id}/qrcode`);
+        } catch (error: any) {
+            console.error('Erro ao iniciar chamada:', error);
+            setErro(error.response?.data?.error || 'Erro ao iniciar chamada.');
+        }
     };
 
     const fetchPresencas = async (turmaId: number) => {
-        const res = await axios.get(`${API_URL}/api/turmas/${turmaId}/presencas`);
-        setPresencas(res.data);
+        try {
+            const res = await axios.get(`${API_URL}/api/turmas/${turmaId}/presencas`);
+            setPresencas(res.data);
+        } catch (error: any) {
+            console.error('Erro ao buscar presenças:', error);
+        }
     };
 
     const baixarTXT = async () => {
-        const res = await axios.get(`${API_URL}/api/turmas/${turma!.id}/download`, { responseType: 'blob' });
-        const url = window.URL.createObjectURL(new Blob([res.data]));
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', 'presenca.txt');
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
+        if (!turma) return;
+
+        try {
+            const res = await axios.get(`${API_URL}/api/turmas/${turma.id}/download`, { responseType: 'blob' });
+            const url = window.URL.createObjectURL(new Blob([res.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', 'presenca.txt');
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } catch (error: any) {
+            console.error('Erro ao baixar TXT:', error);
+            setErro('Erro ao baixar arquivo.');
+        }
     };
 
     return (
