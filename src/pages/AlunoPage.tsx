@@ -11,7 +11,7 @@ function AlunoPage() {
 
     const enviarPresenca = async () => {
         try {
-            await axios.post(`${API_URL}/presenca`, { alunoNome: nome, token });
+            await axios.post(`${API_URL}/api/presencas`, { alunoNome: nome, token });
             setMensagem('Presença registrada com sucesso!');
         } catch (err: any) {
             setMensagem(err.response?.data?.error || 'Erro ao registrar presença');

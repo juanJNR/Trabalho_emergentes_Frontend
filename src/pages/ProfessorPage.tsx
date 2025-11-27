@@ -47,21 +47,22 @@ function ProfessorPage() {
     }, [token, timer]);
 
     const criarTurma = async () => {
-        const res = await axios.post(`${API_URL}/turmas`, { nome: turmaNome });
+        const res = await axios.post(`${API_URL}/api/turmas`, { nome: turmaNome });
         setTurma(res.data);
+        socket.emit('joinRoom', res.data.id); // Entra na sala da turma
     };
 
     const iniciarChamada = async () => {
-        if (turma) await axios.post(`${API_URL}/turmas/${turma.id}/gerar-token`);
+        if (turma) await axios.post(`${API_URL}/api/turmas/${turma.id}/qrcode`);
     };
 
     const fetchPresencas = async (turmaId: number) => {
-        const res = await axios.get(`${API_URL}/turmas/${turmaId}/presenca`);
+        const res = await axios.get(`${API_URL}/api/turmas/${turmaId}/presencas`);
         setPresencas(res.data);
     };
 
     const baixarTXT = async () => {
-        const res = await axios.get(`${API_URL}/turmas/${turma!.id}/download`, { responseType: 'blob' });
+        const res = await axios.get(`${API_URL}/api/turmas/${turma!.id}/download`, { responseType: 'blob' });
         const url = window.URL.createObjectURL(new Blob([res.data]));
         const link = document.createElement('a');
         link.href = url;
@@ -117,7 +118,7 @@ function ProfessorPage() {
                                 </h3>
                                 <div className="flex flex-col items-center">
                                     <div className="bg-white p-6 rounded-xl shadow-lg border-4 border-primary-200">
-                                        <QRCode value={`http://localhost:3000/aluno/${token}`} size={250} />
+                                        <QRCode value={`${window.location.origin}/aluno/${token}`} size={250} />
                                     </div>
                                     <div className="mt-6 text-center">
                                         <p className="text-lg text-gray-600 mb-2">Tempo restante para novo QR Code:</p>
