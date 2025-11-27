@@ -22,6 +22,8 @@ function ProfessorPage() {
     const [token, setToken] = useState('');
     const [presencas, setPresencas] = useState<Presenca[]>([]);
     const [timer, setTimer] = useState(20);
+    const [loading, setLoading] = useState(false);
+    const [erro, setErro] = useState('');
 
     useEffect(() => {
         socket.on('novoToken', ({ token }) => {
@@ -47,9 +49,23 @@ function ProfessorPage() {
     }, [token, timer]);
 
     const criarTurma = async () => {
-        const res = await axios.post(`${API_URL}/api/turmas`, { nome: turmaNome });
-        setTurma(res.data);
-        socket.emit('joinRoom', res.data.id); // Entra na sala da turma
+        if (!turmaNome.trim()) {
+            setErro('Digite o nome da turma');
+            return;
+        }
+
+        try {
+            setLoading(true);
+            setErro('');
+            const res = await axios.post(`${API_URL}/api/turmas`, { nome: turmaNome });
+            setTurma(res.data);
+            socket.emit('joinRoom', res.data.id); // Entra na sala da turma
+        } catch (error: any) {
+            console.error('Erro ao criar turma:', error);
+            setErro(error.response?.data?.message || 'Erro ao criar turma. Verifique sua conexão.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const iniciarChamada = async () => {
@@ -82,17 +98,25 @@ function ProfessorPage() {
                 {!turma ? (
                     <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md mx-auto">
                         <h2 className="text-2xl font-semibold text-gray-700 mb-6">Criar Nova Turma</h2>
+                        {erro && (
+                            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+                                {erro}
+                            </div>
+                        )}
                         <input
                             value={turmaNome}
                             onChange={e => setTurmaNome(e.target.value)}
+                            onKeyPress={e => e.key === 'Enter' && criarTurma()}
                             placeholder="Nome da turma"
                             className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary-500 transition mb-4"
+                            disabled={loading}
                         />
                         <button
                             onClick={criarTurma}
-                            className="w-full bg-gradient-to-r from-primary-500 to-primary-600 text-white py-3 rounded-lg font-semibold hover:from-primary-600 hover:to-primary-700 transition shadow-lg"
+                            disabled={loading}
+                            className="w-full bg-gradient-to-r from-primary-500 to-primary-600 text-white py-3 rounded-lg font-semibold hover:from-primary-600 hover:to-primary-700 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            Criar Turma
+                            {loading ? 'Criando...' : 'Criar Turma'}
                         </button>
                     </div>
                 ) : (
